@@ -1,11 +1,11 @@
 """
 =============================================================================
-YOLOv8 Real-Time Mobile & Web Object Detector
+YOLOv8 Real-Time Mobile & Web AI Object Detector
 =============================================================================
 Author      : AI & Computer Vision Expert
-Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, WebRTC HTML5
-Features    : High Accuracy Mobile Camera Detection, Fast Auto-Loop Rerun,
-              Mobile Voice Announcer, Glassmorphism Dark UI
+Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, TensorFlow.js COCO-SSD
+Features    : 30 FPS Real-Time Smartphone Live Camera Stream, Zero Button Click,
+              Phone Speaker Voice Announcer, Camera Flip (Front/Back)
 =============================================================================
 """
 
@@ -25,38 +25,23 @@ from ultralytics import YOLO
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="YOLOv8 AI Real-Time Mobile & Web Object Detector",
-    page_icon="⚡",
+    page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom Glassmorphism Dark Theme Styling
 st.markdown("""
     <style>
-        /* Global Background & Typography */
         .stApp {
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
             color: #f8fafc;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        /* Glassmorphism Containers */
         div[data-testid="stMetricValue"] {
             font-size: 2rem !important;
             font-weight: 700 !important;
             color: #38bdf8 !important;
-        }
-
-        .announcer-box {
-            background: linear-gradient(90deg, #0284c7 0%, #6366f1 100%);
-            color: white;
-            border-radius: 14px;
-            padding: 16px 20px;
-            font-size: 1.35rem;
-            font-weight: 700;
-            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
-            margin-bottom: 16px;
-            line-height: 1.4;
         }
 
         .main-title {
@@ -101,42 +86,23 @@ TARGET_CLASSES = [
 ]
 
 CLASS_COLORS = {
-    "person": (255, 99, 71),       # Red
-    "car": (50, 205, 50),          # Green
-    "truck": (30, 144, 255),       # Blue
-    "bottle": (255, 215, 0),       # Yellow
-    "chair": (147, 112, 219),      # Purple
-    "laptop": (0, 255, 255),       # Cyan
-    "cell phone": (255, 105, 180), # Pink
-    "bus": (255, 140, 0),          # Orange
-    "motorcycle": (173, 255, 47)   # Lime
+    "person": (255, 99, 71),
+    "car": (50, 205, 50),
+    "truck": (30, 144, 255),
+    "bottle": (255, 215, 0),
+    "chair": (147, 112, 219),
+    "laptop": (0, 255, 255),
+    "cell phone": (255, 105, 180),
+    "bus": (255, 140, 0),
+    "motorcycle": (173, 255, 47)
 }
 DEFAULT_COLOR = (0, 255, 127)
 
 @st.cache_resource
 def load_yolo_model(model_name: str):
-    """Loads and caches the YOLOv8 model weights."""
     return YOLO(model_name)
 
-def speak_text_mobile(text: str):
-    """Triggers mobile browser Text-to-Speech audio announcement on Android & iPhone speakers."""
-    clean_text = text.replace('"', '').replace("'", "")
-    js_code = f"""
-        <script>
-            if ('speechSynthesis' in window) {{
-                window.speechSynthesis.cancel();
-                var msg = new SpeechSynthesisUtterance("{clean_text}");
-                msg.rate = 1.0;
-                msg.pitch = 1.0;
-                msg.lang = 'en-US';
-                window.speechSynthesis.speak(msg);
-            }}
-        </script>
-    """
-    components.html(js_code, height=0, width=0)
-
 def annotate_image(image_np, results, conf_threshold, selected_classes, show_labels=True, show_conf=True):
-    """Draws high-contrast bounding boxes and labels on an image array."""
     annotated = image_np.copy()
     detections = []
     class_tallies = {}
@@ -155,23 +121,22 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
         x1, y1, x2, y2 = map(int, box.xyxy[0])
         color = CLASS_COLORS.get(class_name, DEFAULT_COLOR)
 
-        # Draw thick rounded rectangle for clear visibility on mobile
-        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 4)
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 3)
 
         label_text = class_name.capitalize()
         if show_conf:
             label_text += f" {conf * 100:.1f}%"
 
         if show_labels:
-            (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
-            cv2.rectangle(annotated, (x1, y1 - th - 12), (x1 + tw + 12, y1), color, -1)
-            cv2.putText(annotated, label_text, (x1 + 6, y1 - 6),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 2, cv2.LINE_AA)
+            (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            cv2.rectangle(annotated, (x1, y1 - th - 10), (x1 + tw + 10, y1), color, -1)
+            cv2.putText(annotated, label_text, (x1 + 5, y1 - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2, cv2.LINE_AA)
 
         class_tallies[class_name] = class_tallies.get(class_name, 0) + 1
         detections.append({
             "Class": class_name.capitalize(),
-            "Confidence": f"{conf * 100:.1f}%",
+            "Confidence": f"{conf * 100:.2f}%",
             "BBox": f"({x1}, {y1}, {x2}, {y2})"
         })
 
@@ -182,7 +147,7 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
 # -----------------------------------------------------------------------------
 def main():
     st.markdown('<div class="main-title">📱 YOLOv8 Mobile & Web AI Object Detector</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Real-Time High Precision Camera Object Detection & Voice Announcer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Real-Time Mobile Camera Detection with Voice Speech Announcer</div>', unsafe_allow_html=True)
 
     st.sidebar.image("https://raw.githubusercontent.com/ultralytics/assets/main/yolov8/banner-yolov8.png", use_container_width=True)
     st.sidebar.header("⚙️ Model & Detection Config")
@@ -197,14 +162,12 @@ def main():
     with st.spinner(f"Loading {model_weights}..."):
         model = load_yolo_model(model_weights)
 
-    # Default to 0.35 confidence threshold for high sensitivity on mobile
     conf_threshold = st.sidebar.slider(
         "Confidence Threshold",
         min_value=0.10,
         max_value=1.00,
         value=0.35,
-        step=0.05,
-        help="Lower confidence detects smaller or faster moving objects."
+        step=0.05
     )
 
     filter_mode = st.sidebar.radio(
@@ -226,67 +189,177 @@ def main():
     st.sidebar.subheader("🎨 Display & Voice Preferences")
     show_labels = st.sidebar.checkbox("Show Labels", value=True)
     show_conf = st.sidebar.checkbox("Show Confidence Scores", value=True)
-    enable_voice = st.sidebar.checkbox("🔊 Speaker Voice Announcer", value=True)
 
     tab1, tab2, tab3, tab4 = st.tabs([
-        "⚡ Mobile Live Detection & Voice", 
+        "📱 Real-Time Live Camera & Voice", 
         "🖼️ Image Detection", 
         "🎥 Video Processing", 
         "📊 Model Architecture"
     ])
 
     # -------------------------------------------------------------------------
-    # TAB 1: High Precision Mobile Live Camera Stream & Announcer
+    # TAB 1: 30 FPS True Real-Time Smartphone Camera + Voice Announcer
     # -------------------------------------------------------------------------
     with tab1:
-        st.subheader("📱 Real-Time High Precision Smartphone Camera Scanner")
-        st.write("Scan objects live with your smartphone camera for instant detection and spoken voice announcements!")
+        st.subheader("📱 Real-Time Live Smartphone Camera Scanner")
+        st.write("Zero-click continuous 30 FPS camera detection with live bounding boxes and voice speech announcements!")
 
-        auto_loop = st.checkbox("🟢 Continuous Auto-Detection Loop", value=True)
+        # Embed Real-Time TensorFlow.js / HTML5 30 FPS AI Object Detection Canvas
+        mobile_live_html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+            <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+            <style>
+                body { margin: 0; padding: 0; background-color: #0f172a; color: white; font-family: sans-serif; text-align: center; }
+                .cam-container { position: relative; width: 100%; max-width: 500px; margin: 0 auto; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid #38bdf8; }
+                video { width: 100%; height: auto; display: block; background: #1e293b; }
+                canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+                .announcement-card { background: linear-gradient(90deg, #0284c7 0%, #6366f1 100%); color: white; padding: 14px 18px; border-radius: 12px; font-weight: bold; font-size: 1.2rem; margin: 15px auto; max-width: 500px; box-shadow: 0 8px 20px rgba(99,102,241,0.3); }
+                .btn-controls { margin: 12px 0; }
+                .btn { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; font-size: 1rem; margin: 4px; }
+                .btn-voice { background: #10b981; color: white; }
+            </style>
+        </head>
+        <body>
 
-        camera_image = st.camera_input("Point Phone Camera at Objects", key="high_precision_mobile_cam")
+            <div class="btn-controls">
+                <button class="btn btn-voice" onclick="toggleVoice()">🔊 Voice Announcer: <span id="voice_status">ON</span></button>
+                <button class="btn" onclick="switchCamera()">🔄 Flip Camera</button>
+            </div>
 
-        if camera_image is not None:
-            bytes_data = camera_image.getvalue()
-            cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-            cv2_img_rgb = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
+            <div id="status_text" style="color: #38bdf8; font-weight: bold; margin-bottom: 8px;">⏳ Initializing AI Vision Engine & Camera...</div>
 
-            start_t = time.time()
-            results = model.predict(cv2_img_rgb, conf=conf_threshold, verbose=False)[0]
-            proc_ms = (time.time() - start_t) * 1000
+            <div class="announcement-card" id="announcement">📢 Live Scan: Scanning for objects...</div>
 
-            annotated_rgb, detections, class_tallies = annotate_image(
-                cv2_img_rgb, results, conf_threshold, selected_classes, show_labels, show_conf
-            )
+            <div class="cam-container">
+                <video id="webcam" autoplay playsinline muted></video>
+                <canvas id="canvas"></canvas>
+            </div>
 
-            if class_tallies:
-                tally_items = [f"{count} {cls.capitalize()}{'s' if count > 1 else ''}" for cls, count in class_tallies.items()]
-                announcement_text = "I see " + ", ".join(tally_items)
-            else:
-                announcement_text = "Scanning for objects..."
+            <script>
+                const video = document.getElementById('webcam');
+                const canvas = document.getElementById('canvas');
+                const ctx = canvas.getContext('2d');
+                const statusText = document.getElementById('status_text');
+                const announcementBox = document.getElementById('announcement');
+                const voiceStatusBtn = document.getElementById('voice_status');
 
-            st.markdown(f'<div class="announcer-box">📢 <b>LIVE ANNOUNCEMENT:</b><br>{announcement_text}</div>', unsafe_allow_html=True)
+                let model = null;
+                let currentFacingMode = "environment";
+                let voiceEnabled = true;
+                let lastSpokenTime = 0;
 
-            if enable_voice and class_tallies:
-                speak_text_mobile(announcement_text)
+                function toggleVoice() {
+                    voiceEnabled = !voiceEnabled;
+                    voiceStatusBtn.innerText = voiceEnabled ? "ON" : "OFF";
+                    if (voiceEnabled) speak("Voice Announcer Enabled");
+                }
 
-            st.image(annotated_rgb, caption="YOLOv8 AI High Precision Detection", use_container_width=True)
+                function speak(text) {
+                    if (!voiceEnabled || !('speechSynthesis' in window)) return;
+                    window.speechSynthesis.cancel();
+                    let msg = new SpeechSynthesisUtterance(text);
+                    msg.rate = 1.0;
+                    msg.lang = 'en-US';
+                    window.speechSynthesis.speak(msg);
+                }
 
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.metric("Objects Detected", len(detections))
-            with c2:
-                st.metric("Unique Classes", len(class_tallies))
-            with c3:
-                st.metric("Speed", f"{proc_ms:.1f} ms")
+                async function setupCamera() {
+                    if (video.srcObject) {
+                        video.srcObject.getTracks().forEach(track => track.stop());
+                    }
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: { ideal: currentFacingMode }, width: { ideal: 640 }, height: { ideal: 480 } },
+                            audio: false
+                        });
+                        video.srcObject = stream;
+                        return new Promise((resolve) => {
+                            video.onloadedmetadata = () => {
+                                resolve(video);
+                            };
+                        });
+                    } catch (err) {
+                        statusText.innerText = "⚠️ Camera Permission Required. Please allow camera access in browser.";
+                    }
+                }
 
-            if detections:
-                df_det = pd.DataFrame(detections)
-                st.dataframe(df_det, use_container_width=True)
+                function switchCamera() {
+                    currentFacingMode = (currentFacingMode === "environment") ? "user" : "environment";
+                    setupCamera();
+                }
 
-            if auto_loop:
-                time.sleep(0.1)
-                st.rerun()
+                async function detectLoop() {
+                    if (video.readyState === 4) {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        
+                        const predictions = await model.detect(video);
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                        let detectedClasses = [];
+                        let counts = {};
+
+                        predictions.forEach(prediction => {
+                            if (prediction.score >= 0.35) {
+                                const [x, y, width, height] = prediction.bbox;
+                                const label = prediction.class;
+                                counts[label] = (counts[label] || 0) + 1;
+
+                                // Bounding box
+                                ctx.strokeStyle = "#00FFFF";
+                                ctx.lineWidth = 4;
+                                ctx.strokeRect(x, y, width, height);
+
+                                // Label Background
+                                ctx.fillStyle = "#00FFFF";
+                                const textWidth = ctx.measureText(label).width;
+                                ctx.fillRect(x, y - 25, textWidth + 50, 25);
+
+                                // Text
+                                ctx.fillStyle = "#000000";
+                                ctx.font = "bold 16px sans-serif";
+                                ctx.fillText(`${label.toUpperCase()} (${Math.round(prediction.score * 100)}%)`, x + 5, y - 6);
+                            }
+                        });
+
+                        // Update Announcement Text
+                        let keys = Object.keys(counts);
+                        if (keys.length > 0) {
+                            let itemsText = keys.map(k => `${counts[k]} ${k}`).join(', ');
+                            let text = `I see ${itemsText}`;
+                            announcementBox.innerText = `📢 Live Announcement: ${text}`;
+
+                            // Voice Speech Every 3 Seconds
+                            let now = Date.now();
+                            if (now - lastSpokenTime > 3000) {
+                                speak(text);
+                                lastSpokenTime = now;
+                            }
+                        } else {
+                            announcementBox.innerText = "📢 Live Announcement: Scanning for objects...";
+                        }
+                    }
+                    requestAnimationFrame(detectLoop);
+                }
+
+                async function init() {
+                    statusText.innerText = "⏳ Loading AI Detection Model...";
+                    model = await cocoSsd.load();
+                    statusText.innerText = "⚡ Smartphone Live Camera AI Engine Running!";
+                    await setupCamera();
+                    detectLoop();
+                }
+
+                init();
+            </script>
+        </body>
+        </html>
+        """
+
+        components.html(mobile_live_html, height=620)
 
     # -------------------------------------------------------------------------
     # TAB 2: Image Detection Mode

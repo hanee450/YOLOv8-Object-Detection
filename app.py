@@ -4,8 +4,8 @@ YOLOv8 Real-Time Object Detection - Portfolio Web Dashboard
 =============================================================================
 Author      : AI & Computer Vision Expert
 Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, Pandas, PIL
-Features    : Dark UI Glassmorphism, Image & Video Upload, Object Tally Charts,
-              Custom Class Filters, Confidence Sliders & Export Utilities
+Features    : Dark UI Glassmorphism, Image & Video Upload, Browser Camera,
+              Object Tally Charts, Custom Class Filters, Export Utilities
 =============================================================================
 """
 
@@ -228,7 +228,7 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs([
         "🖼️ Image Detection", 
         "🎥 Video Detection", 
-        "📹 Live Webcam", 
+        "📹 Live Camera Feed", 
         "📊 Model Architecture & Benchmarks"
     ])
 
@@ -385,24 +385,48 @@ def main():
                     )
 
     # -------------------------------------------------------------------------
-    # TAB 3: Real-Time Webcam Instructions & Stream
+    # TAB 3: Live Camera Feed Mode (Direct Browser Camera Capture)
     # -------------------------------------------------------------------------
     with tab3:
-        st.subheader("📹 Real-Time Live Webcam Feed")
-        st.write("""
-        To launch the high-framerate **real-time desktop webcam feed** with HUD overlays, screenshot capture (`'s'`), 
-        and video recording (`'r'`), run the standalone script directly from your terminal:
-        """)
-        
-        st.code("python webcam_detection.py --conf 0.45 --filter-target", language="bash")
+        st.subheader("📹 Live Web Camera Object Detection")
+        st.write("Use your device camera (Laptop Webcam or Smartphone Camera) directly in the browser to detect objects live!")
 
-        st.markdown("#### 🌟 Features in Desktop Mode:")
-        st.markdown("""
-        * ⚡ **High FPS Processing**: Optimized direct OpenCV buffer access.
-        * 📸 **Instant Screenshot**: Press `s` on your keyboard to save frames to `output/`.
-        * 🔴 **Live Recording**: Press `r` to start/stop video recording.
-        * 🎯 **Dynamic Filtering**: Switch between 9 key target classes or all COCO classes.
-        """)
+        camera_image = st.camera_input("Take a photo with your live camera")
+
+        if camera_image is not None:
+            # Convert camera buffer to OpenCV BGR then RGB
+            bytes_data = camera_image.getvalue()
+            cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+            cv2_img_rgb = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
+
+            start_t = time.time()
+            results = model.predict(cv2_img_rgb, conf=conf_threshold, verbose=False)[0]
+            proc_ms = (time.time() - start_t) * 1000
+
+            annotated_rgb, detections, class_tallies = annotate_image(
+                cv2_img_rgb, results, conf_threshold, selected_classes, show_labels, show_conf
+            )
+
+            # Display Result
+            st.image(annotated_rgb, caption="YOLOv8 Detected Live Camera Frame", use_container_width=True)
+
+            # Analytics
+            st.markdown("### 📊 Detection Results")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.metric("Total Objects Detected", len(detections))
+            with c2:
+                st.metric("Inference Speed", f"{proc_ms:.1f} ms")
+
+            if detections:
+                df_det = pd.DataFrame(detections)
+                st.dataframe(df_det, use_container_width=True)
+            else:
+                st.info("No objects detected in the captured camera frame.")
+
+        st.markdown("---")
+        st.write("💻 **Desktop High-FPS Mode**: To run high framerate continuous desktop webcam with hotkeys (`'s'` screenshot, `'r'` recording), run:")
+        st.code("python webcam_detection.py --conf 0.45 --filter-target", language="bash")
 
     # -------------------------------------------------------------------------
     # TAB 4: Architecture & Benchmarks

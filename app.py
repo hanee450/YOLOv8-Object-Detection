@@ -1,11 +1,11 @@
 """
 =============================================================================
-YOLOv8 Real-Time Object Detection - Portfolio Web Dashboard
+YOLOv8 Real-Time Object Detection - Mobile & Web App
 =============================================================================
 Author      : AI & Computer Vision Expert
-Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, Pandas, PIL
-Features    : Dark UI Glassmorphism, Image & Video Upload, Continuous Auto-Detection,
-              Voice & Text Live Object Announcer, Custom Class Filters
+Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, Web Speech API
+Features    : Mobile Responsive, Mobile Camera Live Detection, Real-Time
+              Voice Speech Announcer on Smartphone Speakers, Dark UI
 =============================================================================
 """
 
@@ -21,16 +21,16 @@ import streamlit.components.v1 as components
 from ultralytics import YOLO
 
 # -----------------------------------------------------------------------------
-# 1. Page Configuration & Custom CSS Dark Mode Styling
+# 1. Page Configuration & Custom CSS Dark Mode Styling (Mobile Responsive)
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="YOLOv8 AI Real-Time Object Detection",
-    page_icon="🚀",
+    page_title="YOLOv8 AI Real-Time Mobile & Web Object Detector",
+    page_icon="📱",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom Glassmorphism Dark Theme Styling
+# Custom Glassmorphism Dark Theme Styling optimized for Mobile & Desktop
 st.markdown("""
     <style>
         /* Global Background & Typography */
@@ -42,7 +42,7 @@ st.markdown("""
 
         /* Glassmorphism Containers */
         div[data-testid="stMetricValue"] {
-            font-size: 2.2rem !important;
+            font-size: 2rem !important;
             font-weight: 700 !important;
             color: #38bdf8 !important;
         }
@@ -52,23 +52,21 @@ st.markdown("""
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            padding: 20px;
+            padding: 16px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        /* Live Announcement Banner */
+        /* Mobile Live Announcement Banner */
         .announcer-box {
             background: linear-gradient(90deg, #0284c7 0%, #6366f1 100%);
             color: white;
             border-radius: 14px;
-            padding: 16px 24px;
-            font-size: 1.35rem;
+            padding: 14px 20px;
+            font-size: 1.25rem;
             font-weight: 700;
             box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            margin-bottom: 16px;
+            line-height: 1.4;
         }
 
         /* Header Accent */
@@ -77,14 +75,14 @@ st.markdown("""
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             font-weight: 800;
-            font-size: 2.8rem;
+            font-size: 2.3rem;
             margin-bottom: 0.2rem;
         }
         
         .sub-title {
             color: #94a3b8;
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         /* Custom Sidebar Styling */
@@ -102,10 +100,7 @@ st.markdown("""
             border: none;
             padding: 0.6rem 1.2rem;
             transition: all 0.3s ease;
-        }
-        .stButton>button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.4);
+            width: 100%;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -136,15 +131,17 @@ def load_yolo_model(model_name: str):
     """Loads and caches the YOLOv8 model weights."""
     return YOLO(model_name)
 
-def speak_text(text: str):
-    """Triggers browser Text-to-Speech audio announcement."""
+def speak_text_mobile(text: str):
+    """Triggers mobile browser Text-to-Speech audio announcement on Android & iPhone speakers."""
+    clean_text = text.replace('"', '').replace("'", "")
     js_code = f"""
         <script>
             if ('speechSynthesis' in window) {{
                 window.speechSynthesis.cancel();
-                var msg = new SpeechSynthesisUtterance("{text}");
+                var msg = new SpeechSynthesisUtterance("{clean_text}");
                 msg.rate = 1.0;
                 msg.pitch = 1.0;
+                msg.lang = 'en-US';
                 window.speechSynthesis.speak(msg);
             }}
         </script>
@@ -204,8 +201,8 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
 # -----------------------------------------------------------------------------
 def main():
     # Header Section
-    st.markdown('<div class="main-title">🚀 YOLOv8 Real-Time AI Object Detector</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Computer Vision System powered by Ultralytics YOLOv8, OpenCV, and Streamlit</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">📱 YOLOv8 Mobile & Web AI Object Detector</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Real-Time Mobile Camera Detection with Voice Speech Announcer</div>', unsafe_allow_html=True)
 
     # Sidebar Options
     st.sidebar.image("https://raw.githubusercontent.com/ultralytics/assets/main/yolov8/banner-yolov8.png", use_container_width=True)
@@ -251,167 +248,29 @@ def main():
         )
 
     # UI Options
-    st.sidebar.subheader("🎨 Display Preferences")
+    st.sidebar.subheader("🎨 Display & Voice Preferences")
     show_labels = st.sidebar.checkbox("Show Labels", value=True)
     show_conf = st.sidebar.checkbox("Show Confidence Scores", value=True)
-    enable_voice = st.sidebar.checkbox("🔊 Voice Speech Announcer (TTS)", value=False)
+    enable_voice = st.sidebar.checkbox("🔊 Mobile Speaker Voice Announcer", value=True)
 
     # Tabs Navigation
     tab1, tab2, tab3, tab4 = st.tabs([
+        "📱 Mobile Live Camera & Voice", 
         "🖼️ Image Detection", 
         "🎥 Video Detection", 
-        "📹 Continuous Live Camera & Voice", 
-        "📊 Model Architecture & Benchmarks"
+        "📊 Model Architecture"
     ])
 
     # -------------------------------------------------------------------------
-    # TAB 1: Image Detection Mode
+    # TAB 1: Mobile Live Camera & Real-Time Voice Announcer (Default Tab)
     # -------------------------------------------------------------------------
     with tab1:
-        st.subheader("Upload Image for Object Detection")
-        uploaded_file = st.file_uploader("Choose an image (JPG, PNG, WEBP)", type=["jpg", "jpeg", "png", "webp"])
-
-        if uploaded_file is not None:
-            image = Image.open(uploaded_file).convert("RGB")
-            image_np = np.array(image)
-
-            start_time = time.time()
-            results = model.predict(image_np, conf=conf_threshold, verbose=False)[0]
-            inference_time = (time.time() - start_time) * 1000  # ms
-
-            annotated_np, detections, class_tallies = annotate_image(
-                image_np, results, conf_threshold, selected_classes, show_labels, show_conf
-            )
-
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Total Objects Detected", len(detections))
-            with col2:
-                st.metric("Unique Classes", len(class_tallies))
-            with col3:
-                st.metric("Inference Time", f"{inference_time:.1f} ms")
-            with col4:
-                st.metric("Image Resolution", f"{image.width}x{image.height}")
-
-            col_img1, col_img2 = st.columns(2)
-            with col_img1:
-                st.image(image, caption="Original Input Image", use_container_width=True)
-            with col_img2:
-                st.image(annotated_np, caption="YOLOv8 Detected Objects", use_container_width=True)
-
-            st.markdown("### 📊 Detection Analytics & Breakdown")
-            col_ana1, col_ana2 = st.columns([1, 1])
-
-            with col_ana1:
-                st.write("**Object Class Frequency Distribution**")
-                if class_tallies:
-                    df_tally = pd.DataFrame(list(class_tallies.items()), columns=["Object Class", "Count"])
-                    st.bar_chart(df_tally.set_index("Object Class"), color="#38bdf8")
-                else:
-                    st.info("No objects detected matching the active filters.")
-
-            with col_ana2:
-                st.write("**Detailed Detections List**")
-                if detections:
-                    df_detections = pd.DataFrame(detections)
-                    st.dataframe(df_detections, use_container_width=True, height=220)
-                else:
-                    st.info("No bounding box entries to show.")
-
-            st.markdown("---")
-            annotated_pil = Image.fromarray(annotated_np)
-            buf = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-            annotated_pil.save(buf.name)
-            with open(buf.name, "rb") as file:
-                st.download_button(
-                    label="💾 Download Annotated Image",
-                    data=file,
-                    file_name="yolov8_detected_result.png",
-                    mime="image/png"
-                )
-
-    # -------------------------------------------------------------------------
-    # TAB 2: Video File Detection Mode
-    # -------------------------------------------------------------------------
-    with tab2:
-        st.subheader("Batch Video File Processing")
-        uploaded_video = st.file_uploader("Upload Video File (MP4, AVI, MOV)", type=["mp4", "avi", "mov"])
-
-        if uploaded_video is not None:
-            tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-            tfile.write(uploaded_video.read())
-
-            cap = cv2.VideoCapture(tfile.name)
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-            st.info(f"📹 Video Info: Resolution = {width}x{height} | Total Frames = {total_frames} | FPS = {fps:.1f}")
-
-            if st.button("🚀 Process & Annotate Video"):
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                st_frame = st.empty()
-
-                output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-
-                frame_count = 0
-                all_tallies = {}
-                start_proc = time.time()
-
-                while cap.isOpened():
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-
-                    frame_count += 1
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    results = model.predict(frame_rgb, conf=conf_threshold, verbose=False)[0]
-
-                    annotated_rgb, _, tallies = annotate_image(
-                        frame_rgb, results, conf_threshold, selected_classes, show_labels, show_conf
-                    )
-
-                    for k, v in tallies.items():
-                        all_tallies[k] = all_tallies.get(k, 0) + v
-
-                    annotated_bgr = cv2.cvtColor(annotated_rgb, cv2.COLOR_RGB2BGR)
-                    out.write(annotated_bgr)
-
-                    pct = int((frame_count / total_frames) * 100) if total_frames > 0 else 0
-                    progress_bar.progress(pct)
-                    status_text.text(f"Processing Frame {frame_count}/{total_frames} ({pct}%)")
-
-                    if frame_count % 5 == 0:
-                        st_frame.image(annotated_rgb, caption="Live Processing Preview", use_container_width=True)
-
-                cap.release()
-                out.release()
-
-                proc_duration = time.time() - start_proc
-                st.success(f"🎉 Video processing finished in {proc_duration:.2f} seconds ({frame_count / proc_duration:.1f} FPS)!")
-
-                with open(output_path, "rb") as vf:
-                    st.download_button(
-                        label="💾 Download Processed Video",
-                        data=vf,
-                        file_name="yolov8_processed_video.mp4",
-                        mime="video/mp4"
-                    )
-
-    # -------------------------------------------------------------------------
-    # TAB 3: Continuous Live Camera & Real-Time Object Announcer
-    # -------------------------------------------------------------------------
-    with tab3:
-        st.subheader("📹 Continuous Live Camera & Real-Time Object Announcer")
-        st.write("Detect objects continuously and hear/see real-time object announcements!")
+        st.subheader("📱 Smartphone Camera & Real-Time Voice Speech Announcer")
+        st.write("Use your phone camera (Android Chrome or iPhone Safari) for live object detection with spoken voice announcements!")
 
         auto_toggle = st.toggle("🔴 Enable Continuous Auto-Detection Loop", value=True)
 
-        camera_image = st.camera_input("Live Camera Feed", key="continuous_camera_announcer")
+        camera_image = st.camera_input("Open Phone Camera", key="mobile_camera_announcer")
 
         if camera_image is not None:
             bytes_data = camera_image.getvalue()
@@ -431,23 +290,23 @@ def main():
                 tally_items = [f"{count} {cls.capitalize()}{'s' if count > 1 else ''}" for cls, count in class_tallies.items()]
                 announcement_text = "I see " + ", ".join(tally_items)
             else:
-                announcement_text = "No target objects detected in camera feed."
+                announcement_text = "No target objects detected."
 
             # Prominent Real-Time Live Announcement Box
-            st.markdown(f'<div class="announcer-box">📢 <span><b>LIVE ANNOUNCEMENT:</b> {announcement_text}</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="announcer-box">📢 <b>LIVE ANNOUNCEMENT:</b><br>{announcement_text}</div>', unsafe_allow_html=True)
 
-            # Trigger Browser Voice Speech if enabled
+            # Trigger Mobile Phone Speaker Voice Speech if enabled
             if enable_voice and class_tallies:
-                speak_text(announcement_text)
+                speak_text_mobile(announcement_text)
 
-            st.image(annotated_rgb, caption="YOLOv8 Real-Time Auto Detected Frame", use_container_width=True)
+            st.image(annotated_rgb, caption="YOLOv8 Mobile Camera Result", use_container_width=True)
 
             # Analytics Row
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.metric("Total Objects Detected", len(detections))
             with c2:
-                st.metric("Unique Classes Identified", len(class_tallies))
+                st.metric("Unique Classes", len(class_tallies))
             with c3:
                 st.metric("Inference Speed", f"{proc_ms:.1f} ms")
 
@@ -461,30 +320,104 @@ def main():
                 st.rerun()
 
     # -------------------------------------------------------------------------
+    # TAB 2: Image Detection Mode
+    # -------------------------------------------------------------------------
+    with tab2:
+        st.subheader("Upload Image for Object Detection")
+        uploaded_file = st.file_uploader("Choose an image (JPG, PNG, WEBP)", type=["jpg", "jpeg", "png", "webp"])
+
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file).convert("RGB")
+            image_np = np.array(image)
+
+            start_time = time.time()
+            results = model.predict(image_np, conf=conf_threshold, verbose=False)[0]
+            inference_time = (time.time() - start_time) * 1000
+
+            annotated_np, detections, class_tallies = annotate_image(
+                image_np, results, conf_threshold, selected_classes, show_labels, show_conf
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.image(image, caption="Original Image", use_container_width=True)
+            with col2:
+                st.image(annotated_np, caption="YOLOv8 Detected Objects", use_container_width=True)
+
+            if detections:
+                df_detections = pd.DataFrame(detections)
+                st.dataframe(df_detections, use_container_width=True)
+
+    # -------------------------------------------------------------------------
+    # TAB 3: Video File Detection Mode
+    # -------------------------------------------------------------------------
+    with tab3:
+        st.subheader("Batch Video File Processing")
+        uploaded_video = st.file_uploader("Upload Video File (MP4, AVI, MOV)", type=["mp4", "avi", "mov"])
+
+        if uploaded_video is not None:
+            tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+            tfile.write(uploaded_video.read())
+
+            cap = cv2.VideoCapture(tfile.name)
+            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+            if st.button("🚀 Process Video"):
+                progress_bar = st.progress(0)
+                output_path = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4").name
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+
+                frame_count = 0
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+
+                    frame_count += 1
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    results = model.predict(frame_rgb, conf=conf_threshold, verbose=False)[0]
+
+                    annotated_rgb, _, _ = annotate_image(
+                        frame_rgb, results, conf_threshold, selected_classes, show_labels, show_conf
+                    )
+
+                    annotated_bgr = cv2.cvtColor(annotated_rgb, cv2.COLOR_RGB2BGR)
+                    out.write(annotated_bgr)
+
+                    pct = int((frame_count / total_frames) * 100) if total_frames > 0 else 0
+                    progress_bar.progress(pct)
+
+                cap.release()
+                out.release()
+                st.success("🎉 Video processing completed!")
+
+                with open(output_path, "rb") as vf:
+                    st.download_button(
+                        label="💾 Download Processed Video",
+                        data=vf,
+                        file_name="yolov8_processed_video.mp4",
+                        mime="video/mp4"
+                    )
+
+    # -------------------------------------------------------------------------
     # TAB 4: Architecture & Benchmarks
     # -------------------------------------------------------------------------
     with tab4:
         st.subheader("📊 YOLOv8 Model Architecture & Performance")
 
-        st.markdown("""
-        **YOLOv8 (You Only Look Once)** is the state-of-the-art computer vision model developed by **Ultralytics**.
-        It introduces an anchor-free split-head architecture for faster and more accurate object detection, instance segmentation, and pose estimation.
-        """)
-
-        st.markdown("### ⚡ Benchmark Comparison")
-        
         benchmark_data = {
-            "Model Variant": ["YOLOv8n (Nano)", "YOLOv8s (Small)", "YOLOv8m (Medium)", "YOLOv8l (Large)", "YOLOv8x (Extra Large)"],
-            "Parameters (M)": [3.2, 11.2, 25.9, 43.7, 68.2],
-            "FLOPs (B)": [8.7, 28.6, 78.9, 165.2, 257.8],
-            "mAP 50-95 (COCO)": [37.3, 44.9, 50.2, 52.9, 53.9],
-            "CPU Speed (ms)": [80.4, 128.4, 234.7, 375.2, 479.1],
+            "Model Variant": ["YOLOv8n (Nano)", "YOLOv8s (Small)", "YOLOv8m (Medium)", "YOLOv8l (Large)"],
+            "Parameters (M)": [3.2, 11.2, 25.9, 43.7],
+            "mAP 50-95 (COCO)": [37.3, 44.9, 50.2, 52.9],
             "Recommended Use Case": [
-                "Real-time Webcam / Edge Devices",
-                "Balanced Desktop Projects",
+                "Real-time Mobile / Edge Devices",
+                "Balanced Mobile & Desktop Projects",
                 "High Precision Video Analytics",
-                "Server Batch Processing",
-                "Research / Top-Accuracy Benchmarks"
+                "Server Batch Processing"
             ]
         }
 

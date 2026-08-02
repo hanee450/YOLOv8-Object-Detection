@@ -1,11 +1,11 @@
 """
 =============================================================================
-YOLOv8 Real-Time Object Detection with Voice Speech Announcer (TTS)
+YOLOv8 Real-Time Spatial Object Detection & Voice Tracking System
 =============================================================================
 Author      : AI & Computer Vision Portfolio
 Tech Stack  : Python 3.11, YOLOv8 (Ultralytics), OpenCV, NumPy, Windows SAPI5
-Features    : Real-Time Detection, Native Asynchronous Voice Speech Announcer,
-              FPS HUD, Class Filtering, Screenshot ('s'), Video Recording ('r')
+Features    : Real-Time Detection, Spatial Position Tracking (Left / Center / Right),
+              Voice Speech Announcer, Live HUD Overlay, Screenshots & Recording
 =============================================================================
 """
 
@@ -45,11 +45,11 @@ except Exception:
 
 def speak_text_async(text: str):
     """Native non-blocking asynchronous voice announcer for Windows."""
-    print(f"[Voice Announcer]: {text}")
+    print(f"[Spatial Voice Announcer]: {text}")
     global _speaker
     if _speaker is not None:
         try:
-            # Flag 1 = SVSFlagsAsync (Native Windows background speech, zero FPS drop)
+            # Flag 1 = SVSFlagsAsync (Native Windows background speech)
             _speaker.Speak(text, 1)
             return
         except Exception:
@@ -63,7 +63,7 @@ def speak_text_async(text: str):
         pass
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="YOLOv8 Real-Time Voice Object Detection")
+    parser = argparse.ArgumentParser(description="YOLOv8 Spatial Real-Time Voice Object Detection")
     parser.add_argument("--model", type=str, default="yolov8n.pt", help="Path to YOLOv8 model weights")
     parser.add_argument("--source", type=str, default="0", help="Webcam index (0) or IP Camera URL")
     parser.add_argument("--conf", type=float, default=0.45, help="Confidence threshold")
@@ -72,31 +72,49 @@ def parse_args():
     parser.add_argument("--voice_interval", type=float, default=3.0, help="Seconds between voice speech announcements")
     return parser.parse_args()
 
+def get_spatial_position(x_center, frame_width):
+    """Determines spatial position (Left, Center, Right) based on bounding box center x-coordinate."""
+    one_third = frame_width / 3.0
+    if x_center < one_third:
+        return "on the Left"
+    elif x_center > 2 * one_third:
+        return "on the Right"
+    else:
+        return "in the Center"
+
 def draw_hud(frame, fps, total_objects, is_recording, announcement):
     h, w, _ = frame.shape
     overlay = frame.copy()
     
     # Top HUD Bar
-    cv2.rectangle(overlay, (0, 0), (w, 60), (20, 20, 20), -1)
+    cv2.rectangle(overlay, (0, 0), (w, 65), (20, 20, 20), -1)
     alpha = 0.65
     cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
     
-    cv2.putText(frame, "YOLOv8 Real-Time AI Vision", (15, 30), 
+    # Grid Zone Guidelines (Left | Center | Right)
+    cv2.line(frame, (int(w / 3), 65), (int(w / 3), h - 35), (255, 255, 255), 1, cv2.LINE_AA)
+    cv2.line(frame, (int(2 * w / 3), 65), (int(2 * w / 3), h - 35), (255, 255, 255), 1, cv2.LINE_AA)
+    
+    cv2.putText(frame, "LEFT ZONE", (20, h - 45), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+    cv2.putText(frame, "CENTER ZONE", (int(w / 3) + 20, h - 45), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+    cv2.putText(frame, "RIGHT ZONE", (int(2 * w / 3) + 20, h - 45), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
+
+    cv2.putText(frame, "YOLOv8 Spatial Tracking AI", (15, 28), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
     
     fps_color = (0, 255, 0) if fps > 20 else (0, 165, 255)
-    cv2.putText(frame, f"FPS: {fps:.1f}", (w - 140, 30), 
+    cv2.putText(frame, f"FPS: {fps:.1f}", (w - 140, 28), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, fps_color, 2, cv2.LINE_AA)
     
-    cv2.putText(frame, f"Detected: {total_objects}", (w - 300, 30), 
+    cv2.putText(frame, f"Detected: {total_objects}", (w - 300, 28), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 215, 255), 2, cv2.LINE_AA)
 
     # Live Announcement Text Banner
-    cv2.putText(frame, f"VOICE HUD: {announcement}", (15, 52), 
+    cv2.putText(frame, f"SPATIAL HUD: {announcement}", (15, 55), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 1, cv2.LINE_AA)
 
     if is_recording:
-        cv2.circle(frame, (w - 320, 25), 6, (0, 0, 255), -1)
+        cv2.circle(frame, (w - 320, 22), 6, (0, 0, 255), -1)
 
 def draw_control_panel(frame):
     h, w, _ = frame.shape
@@ -116,10 +134,11 @@ def main():
     source = int(args.source) if args.source.isdigit() else args.source
 
     print("=" * 60)
-    print("YOLOv8 Real-Time Voice Object Detection System")
+    print("YOLOv8 Real-Time Spatial Tracking Object Detection System")
     print(f"Model           : {args.model}")
     print(f"Source          : {source}")
     print(f"Confidence      : {args.conf}")
+    print(f"Spatial Tracking: Left / Center / Right Zones Active")
     print(f"Voice Speech    : {'Enabled' if args.speak else 'Disabled'}")
     print("=" * 60)
 
@@ -149,6 +168,7 @@ def main():
         if not ret:
             break
 
+        h, w, _ = frame.shape
         current_time = time.time()
         time_diff = current_time - prev_time
         prev_time = current_time
@@ -158,7 +178,7 @@ def main():
 
         results = model.predict(frame, conf=args.conf, verbose=False)[0]
         total_objects = 0
-        detected_counts = {}
+        spatial_announcements = []
 
         for box in results.boxes:
             cls_id = int(box.cls[0])
@@ -169,29 +189,33 @@ def main():
                 continue
 
             total_objects += 1
-            detected_counts[class_name] = detected_counts.get(class_name, 0) + 1
 
             x1, y1, x2, y2 = map(int, box.xyxy[0])
+            x_center = (x1 + x2) / 2.0
+            position_tag = get_spatial_position(x_center, w)
+
+            spatial_announcements.append(f"{class_name.capitalize()} {position_tag}")
+
             color = CLASS_COLORS.get(class_name, DEFAULT_COLOR)
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            label = f"{class_name.capitalize()} {conf:.2f}"
+            label = f"{class_name.capitalize()} ({position_tag.split()[-1].upper()}) {conf:.2f}"
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
             cv2.rectangle(frame, (x1, y1 - th - 10), (x1 + tw + 10, y1), color, -1)
             cv2.putText(frame, label, (x1 + 5, y1 - 5), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 1, cv2.LINE_AA)
 
-        # Build Announcement String
-        if detected_counts:
-            items = [f"{count} {cls.capitalize()}" for cls, count in detected_counts.items()]
-            announcement = "Detected " + ", ".join(items)
+        # Build Spatial Announcement String
+        if spatial_announcements:
+            # Group by item position
+            announcement = "Detected " + ", ".join(spatial_announcements[:3])
         else:
-            announcement = "Scanning for objects..."
+            announcement = "Scanning Left, Center, and Right zones..."
 
         last_announced_text = announcement
 
-        # Speak announcement via laptop/PC speakers at set intervals
-        if args.speak and detected_counts and (current_time - last_spoken_time > args.voice_interval):
+        # Speak announcement with spatial positions via speakers
+        if args.speak and spatial_announcements and (current_time - last_spoken_time > args.voice_interval):
             speak_text_async(announcement)
             last_spoken_time = current_time
 
@@ -201,7 +225,7 @@ def main():
         if is_recording and out_video is not None:
             out_video.write(frame)
 
-        cv2.imshow("YOLOv8 Voice Object Detection", frame)
+        cv2.imshow("YOLOv8 Spatial Tracking Vision", frame)
 
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):

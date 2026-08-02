@@ -1,0 +1,26 @@
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments & Virtual Envs
+.venv/
+venv/
+ENV/
+env/
+
+# YOLO model weights (if downloaded locally, keep repo lightweight)
+*.pt
+*.onnx
+*.engine
+
+# Output media generated during runs (keep .gitkeep)
+output/*
+!output/.gitkeep
+
+# IDE & System files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

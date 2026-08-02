@@ -3,17 +3,15 @@
 YOLOv8 Real-Time Object Detection with Voice Speech Announcer (TTS)
 =============================================================================
 Author      : AI & Computer Vision Portfolio
-Tech Stack  : Python 3.11, YOLOv8 (Ultralytics), OpenCV, NumPy, PyTTSx3
-Features    : Real-Time Detection, Live Voice Speech Announcer, FPS HUD,
-              Class Filtering, Screenshot ('s'), Video Recording ('r')
+Tech Stack  : Python 3.11, YOLOv8 (Ultralytics), OpenCV, NumPy, Windows SAPI5
+Features    : Real-Time Detection, Native Asynchronous Voice Speech Announcer,
+              FPS HUD, Class Filtering, Screenshot ('s'), Video Recording ('r')
 =============================================================================
 """
 
 import argparse
 import os
 import time
-import queue
-import threading
 from datetime import datetime
 import cv2
 import numpy as np
@@ -33,41 +31,36 @@ CLASS_COLORS = {
     "chair": (147, 112, 219),      # Purple
     "laptop": (0, 255, 255),       # Cyan
     "cell phone": (255, 105, 180), # Pink
-    "bus": (255, 140, 0),          # Orange
+    "bus": (255, 140, 0),          # Dark Orange
     "motorcycle": (173, 255, 47)   # Lime
 }
 DEFAULT_COLOR = (0, 255, 127)
 
-# Speech Queue and Worker Thread for 100% reliable non-blocking Windows TTS
-speech_queue = queue.Queue()
+# Native Windows SAPI5 Speech Engine Initialization
+try:
+    import win32com.client
+    _speaker = win32com.client.Dispatch("SAPI.SpVoice")
+except Exception:
+    _speaker = None
 
-def speech_worker():
-    """Background worker thread that processes Text-to-Speech audio queue."""
+def speak_text_async(text: str):
+    """Native non-blocking asynchronous voice announcer for Windows."""
+    print(f"[Voice Announcer]: {text}")
+    global _speaker
+    if _speaker is not None:
+        try:
+            # Flag 1 = SVSFlagsAsync (Native Windows background speech, zero FPS drop)
+            _speaker.Speak(text, 1)
+            return
+        except Exception:
+            pass
     try:
         import pyttsx3
         engine = pyttsx3.init()
-        engine.setProperty('rate', 160)
-        while True:
-            text = speech_queue.get()
-            if text is None:
-                break
-            print(f"[Voice Announcer]: {text}")
-            try:
-                engine.say(text)
-                engine.runAndWait()
-            except Exception as e:
-                print(f"[Voice Engine Error]: {e}")
-            speech_queue.task_done()
-    except Exception as e:
-        print(f"[TTS Initialization Warning]: {e}")
-
-# Start background speech thread ONCE at startup
-threading.Thread(target=speech_worker, daemon=True).start()
-
-def speak_text_async(text: str):
-    """Enqueues speech text without blocking the main webcam loop."""
-    if speech_queue.empty():
-        speech_queue.put(text)
+        engine.say(text)
+        engine.runAndWait()
+    except Exception:
+        pass
 
 def parse_args():
     parser = argparse.ArgumentParser(description="YOLOv8 Real-Time Voice Object Detection")

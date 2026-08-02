@@ -5,7 +5,7 @@ YOLOv8 Real-Time Object Detection - Portfolio Web Dashboard
 Author      : AI & Computer Vision Expert
 Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, Pandas, PIL
 Features    : Dark UI Glassmorphism, Image & Video Upload, Continuous Auto-Detection,
-              Object Tally Charts, Custom Class Filters, Export Utilities
+              Voice & Text Live Object Announcer, Custom Class Filters
 =============================================================================
 """
 
@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 import streamlit as st
+import streamlit.components.v1 as components
 from ultralytics import YOLO
 
 # -----------------------------------------------------------------------------
@@ -53,6 +54,21 @@ st.markdown("""
             border-radius: 16px;
             padding: 20px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Live Announcement Banner */
+        .announcer-box {
+            background: linear-gradient(90deg, #0284c7 0%, #6366f1 100%);
+            color: white;
+            border-radius: 14px;
+            padding: 16px 24px;
+            font-size: 1.35rem;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         /* Header Accent */
@@ -119,6 +135,21 @@ DEFAULT_COLOR = (0, 255, 127)
 def load_yolo_model(model_name: str):
     """Loads and caches the YOLOv8 model weights."""
     return YOLO(model_name)
+
+def speak_text(text: str):
+    """Triggers browser Text-to-Speech audio announcement."""
+    js_code = f"""
+        <script>
+            if ('speechSynthesis' in window) {{
+                window.speechSynthesis.cancel();
+                var msg = new SpeechSynthesisUtterance("{text}");
+                msg.rate = 1.0;
+                msg.pitch = 1.0;
+                window.speechSynthesis.speak(msg);
+            }}
+        </script>
+    """
+    components.html(js_code, height=0, width=0)
 
 # -----------------------------------------------------------------------------
 # 3. Helper Drawing Functions
@@ -223,12 +254,13 @@ def main():
     st.sidebar.subheader("🎨 Display Preferences")
     show_labels = st.sidebar.checkbox("Show Labels", value=True)
     show_conf = st.sidebar.checkbox("Show Confidence Scores", value=True)
+    enable_voice = st.sidebar.checkbox("🔊 Voice Speech Announcer (TTS)", value=False)
 
     # Tabs Navigation
     tab1, tab2, tab3, tab4 = st.tabs([
         "🖼️ Image Detection", 
         "🎥 Video Detection", 
-        "📹 Continuous Live Camera", 
+        "📹 Continuous Live Camera & Voice", 
         "📊 Model Architecture & Benchmarks"
     ])
 
@@ -371,15 +403,15 @@ def main():
                     )
 
     # -------------------------------------------------------------------------
-    # TAB 3: Continuous Live Camera Feed (Auto-Detection Mode)
+    # TAB 3: Continuous Live Camera & Real-Time Object Announcer
     # -------------------------------------------------------------------------
     with tab3:
-        st.subheader("📹 Continuous Live Camera Auto-Detection")
-        st.write("Enable the toggle below for continuous real-time camera auto-detection!")
+        st.subheader("📹 Continuous Live Camera & Real-Time Object Announcer")
+        st.write("Detect objects continuously and hear/see real-time object announcements!")
 
-        auto_toggle = st.toggle("🔴 Enable Continuous Auto-Detection Loop", value=False)
+        auto_toggle = st.toggle("🔴 Enable Continuous Auto-Detection Loop", value=True)
 
-        camera_image = st.camera_input("Live Camera Feed", key="continuous_camera")
+        camera_image = st.camera_input("Live Camera Feed", key="continuous_camera_announcer")
 
         if camera_image is not None:
             bytes_data = camera_image.getvalue()
@@ -394,13 +426,29 @@ def main():
                 cv2_img_rgb, results, conf_threshold, selected_classes, show_labels, show_conf
             )
 
+            # Build Live Object Announcement String
+            if class_tallies:
+                tally_items = [f"{count} {cls.capitalize()}{'s' if count > 1 else ''}" for cls, count in class_tallies.items()]
+                announcement_text = "I see " + ", ".join(tally_items)
+            else:
+                announcement_text = "No target objects detected in camera feed."
+
+            # Prominent Real-Time Live Announcement Box
+            st.markdown(f'<div class="announcer-box">📢 <span><b>LIVE ANNOUNCEMENT:</b> {announcement_text}</span></div>', unsafe_allow_html=True)
+
+            # Trigger Browser Voice Speech if enabled
+            if enable_voice and class_tallies:
+                speak_text(announcement_text)
+
             st.image(annotated_rgb, caption="YOLOv8 Real-Time Auto Detected Frame", use_container_width=True)
 
-            st.markdown("### 📊 Live Detections Breakdown")
-            c1, c2 = st.columns(2)
+            # Analytics Row
+            c1, c2, c3 = st.columns(3)
             with c1:
                 st.metric("Total Objects Detected", len(detections))
             with c2:
+                st.metric("Unique Classes Identified", len(class_tallies))
+            with c3:
                 st.metric("Inference Speed", f"{proc_ms:.1f} ms")
 
             if detections:

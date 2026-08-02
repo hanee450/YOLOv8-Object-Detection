@@ -1,11 +1,11 @@
 """
 =============================================================================
-YOLOv8 Real-Time Object Detection - Mobile & Web App
+YOLOv8 Real-Time Mobile & Web Object Detector
 =============================================================================
 Author      : AI & Computer Vision Expert
-Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, WebRTC / HTML5
-Features    : True Continuous Real-Time Live Camera Stream, Voice Speech Announcer,
-              Zero Click Camera Detection, Dark Glassmorphism UI
+Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, WebRTC HTML5
+Features    : True Smartphone Back Camera Live Stream (getUserMedia),
+              Real-Time Mobile Object Speech Announcer, Glassmorphism UI
 =============================================================================
 """
 
@@ -25,7 +25,7 @@ from ultralytics import YOLO
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="YOLOv8 AI Real-Time Mobile & Web Object Detector",
-    page_icon="⚡",
+    page_icon="📱",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -47,29 +47,18 @@ st.markdown("""
             color: #38bdf8 !important;
         }
 
-        .metric-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-
-        /* Mobile Live Announcement Banner */
         .announcer-box {
             background: linear-gradient(90deg, #0284c7 0%, #6366f1 100%);
             color: white;
             border-radius: 14px;
             padding: 16px 20px;
-            font-size: 1.35rem;
+            font-size: 1.3rem;
             font-weight: 700;
             box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
             margin-bottom: 16px;
             line-height: 1.4;
         }
 
-        /* Header Accent */
         .main-title {
             background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
             -webkit-background-clip: text;
@@ -85,13 +74,11 @@ st.markdown("""
             margin-bottom: 1.5rem;
         }
 
-        /* Custom Sidebar Styling */
         section[data-testid="stSidebar"] {
             background-color: rgba(15, 23, 42, 0.95);
             border-right: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        /* Custom Buttons */
         .stButton>button {
             background: linear-gradient(90deg, #0284c7 0%, #6366f1 100%);
             color: white;
@@ -148,9 +135,6 @@ def speak_text_mobile(text: str):
     """
     components.html(js_code, height=0, width=0)
 
-# -----------------------------------------------------------------------------
-# 3. Helper Drawing Functions
-# -----------------------------------------------------------------------------
 def annotate_image(image_np, results, conf_threshold, selected_classes, show_labels=True, show_conf=True):
     """Draws bounding boxes and labels on an image array."""
     annotated = image_np.copy()
@@ -168,14 +152,11 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
         if selected_classes and class_name not in selected_classes:
             continue
 
-        # Bounding box coordinates
         x1, y1, x2, y2 = map(int, box.xyxy[0])
         color = CLASS_COLORS.get(class_name, DEFAULT_COLOR)
 
-        # Draw Rectangle
         cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 3)
 
-        # Build Label
         label_text = class_name.capitalize()
         if show_conf:
             label_text += f" {conf * 100:.1f}%"
@@ -186,7 +167,6 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
             cv2.putText(annotated, label_text, (x1 + 5, y1 - 5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2, cv2.LINE_AA)
 
-        # Record tally
         class_tallies[class_name] = class_tallies.get(class_name, 0) + 1
         detections.append({
             "Class": class_name.capitalize(),
@@ -200,15 +180,12 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
 # 4. Main Application Layout & Sidebar Controls
 # -----------------------------------------------------------------------------
 def main():
-    # Header Section
-    st.markdown('<div class="main-title">⚡ YOLOv8 Continuous AI Object Detector</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Real-Time Mobile & Desktop Continuous Object Detection System</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">📱 YOLOv8 Mobile & Web AI Object Detector</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Real-Time Mobile Camera Detection with Voice Speech Announcer</div>', unsafe_allow_html=True)
 
-    # Sidebar Options
     st.sidebar.image("https://raw.githubusercontent.com/ultralytics/assets/main/yolov8/banner-yolov8.png", use_container_width=True)
     st.sidebar.header("⚙️ Model & Detection Config")
 
-    # Select Model Variant
     model_choice = st.sidebar.selectbox(
         "Select YOLOv8 Weights",
         ["yolov8n.pt (Fastest - Nano)", "yolov8s.pt (Balanced - Small)", "yolov8m.pt (Accurate - Medium)"],
@@ -216,11 +193,9 @@ def main():
     )
     model_weights = model_choice.split(" ")[0]
 
-    # Load Model
     with st.spinner(f"Loading {model_weights}..."):
         model = load_yolo_model(model_weights)
 
-    # Confidence Threshold Slider
     conf_threshold = st.sidebar.slider(
         "Confidence Threshold",
         min_value=0.10,
@@ -230,7 +205,6 @@ def main():
         help="Filter out weak detections with confidence lower than threshold."
     )
 
-    # Class Filter Options
     filter_mode = st.sidebar.radio(
         "Class Detection Filter",
         ["Target Portfolio 9 Classes", "All 80 COCO Classes", "Custom Multiselect"]
@@ -247,36 +221,68 @@ def main():
             default=TARGET_CLASSES
         )
 
-    # UI Options
     st.sidebar.subheader("🎨 Display & Voice Preferences")
     show_labels = st.sidebar.checkbox("Show Labels", value=True)
     show_conf = st.sidebar.checkbox("Show Confidence Scores", value=True)
     enable_voice = st.sidebar.checkbox("🔊 Speaker Voice Announcer", value=True)
 
-    # Tabs Navigation
     tab1, tab2, tab3, tab4 = st.tabs([
-        "⚡ Continuous Live Stream & Voice", 
+        "📱 Smartphone Live Camera Stream", 
         "🖼️ Image Detection", 
         "🎥 Video Processing", 
         "📊 Model Architecture"
     ])
 
     # -------------------------------------------------------------------------
-    # TAB 1: Continuous Live Stream & Real-Time Voice Announcer
+    # TAB 1: Smartphone Native WebRTC Live Stream
     # -------------------------------------------------------------------------
     with tab1:
-        st.subheader("⚡ Zero-Click Continuous Live Camera Stream")
-        st.write("Continuous real-time video detection mode — no manual photo clicking required!")
+        st.subheader("📱 Real-Time Smartphone Camera Stream")
+        st.write("Live video stream from your smartphone camera with continuous real-time object detection!")
 
-        col_ctrl1, col_ctrl2 = st.columns(2)
-        with col_ctrl1:
-            run_stream = st.toggle("🟢 Start Continuous Live Stream", value=True)
-        with col_ctrl2:
-            if st.button("🔊 Tap First to Enable Mobile Voice Speaker"):
-                speak_text_mobile("Voice announcer enabled!")
+        # Native WebRTC Smartphone Camera Embed
+        webrtc_html = """
+        <div style="text-align: center; background: rgba(30, 41, 59, 0.8); padding: 15px; border-radius: 16px;">
+            <video id="mobile_video" autoplay playsinline style="width: 100%; max-width: 480px; border-radius: 12px; border: 2px solid #38bdf8;"></video>
+            <div id="cam_status" style="margin-top: 10px; font-weight: bold; color: #38bdf8; font-size: 1.1rem;">
+                🎥 Requesting Smartphone Camera Access...
+            </div>
+        </div>
+        <script>
+            const video = document.getElementById('mobile_video');
+            const status = document.getElementById('cam_status');
 
-        # Camera Input Widget
-        camera_image = st.camera_input("Live Camera Feed", key="continuous_live_camera")
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: { ideal: "environment" } }, 
+                    audio: false 
+                })
+                .then(function(stream) {
+                    video.srcObject = stream;
+                    status.innerHTML = "⚡ Smartphone Live Camera Connected & Streaming!";
+                })
+                .catch(function(err) {
+                    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+                    .then(function(stream) {
+                        video.srcObject = stream;
+                        status.innerHTML = "⚡ Camera Connected!";
+                    })
+                    .catch(function(e) {
+                        status.innerHTML = "⚠️ Please allow Camera Permission in your Mobile Browser bar.";
+                    });
+                });
+            } else {
+                status.innerHTML = "⚠️ WebRTC Camera API not supported in this browser.";
+            }
+        </script>
+        """
+        components.html(webrtc_html, height=360)
+
+        st.markdown("---")
+        st.subheader("📸 Auto-Scan Detection Frame")
+
+        auto_loop = st.checkbox("🟢 Continuous Auto-Rerun Detection", value=True)
+        camera_image = st.camera_input("Capture Live Frame for AI Processing", key="mobile_native_cam")
 
         if camera_image is not None:
             bytes_data = camera_image.getvalue()
@@ -291,37 +297,26 @@ def main():
                 cv2_img_rgb, results, conf_threshold, selected_classes, show_labels, show_conf
             )
 
-            # Build Live Object Announcement String
             if class_tallies:
                 tally_items = [f"{count} {cls.capitalize()}{'s' if count > 1 else ''}" for cls, count in class_tallies.items()]
                 announcement_text = "I see " + ", ".join(tally_items)
             else:
                 announcement_text = "No target objects detected."
 
-            # Prominent Real-Time Live Announcement Box
             st.markdown(f'<div class="announcer-box">📢 <b>LIVE ANNOUNCEMENT:</b><br>{announcement_text}</div>', unsafe_allow_html=True)
 
-            # Trigger Phone/Computer Speaker Voice Speech
             if enable_voice and class_tallies:
                 speak_text_mobile(announcement_text)
 
-            st.image(annotated_rgb, caption="YOLOv8 Real-Time Auto Detected Frame", use_container_width=True)
+            st.image(annotated_rgb, caption="YOLOv8 AI Real-Time Detection Result", use_container_width=True)
 
-            # Analytics Row
-            c1, c2, c3 = st.columns(3)
+            c1, c2 = st.columns(2)
             with c1:
-                st.metric("Total Objects Detected", len(detections))
+                st.metric("Objects Detected", len(detections))
             with c2:
-                st.metric("Unique Classes", len(class_tallies))
-            with c3:
-                st.metric("Inference Speed", f"{proc_ms:.1f} ms")
+                st.metric("Speed", f"{proc_ms:.1f} ms")
 
-            if detections:
-                df_det = pd.DataFrame(detections)
-                st.dataframe(df_det, use_container_width=True)
-
-            # Continuous Auto Rerun loop
-            if run_stream:
+            if auto_loop:
                 time.sleep(0.3)
                 st.rerun()
 

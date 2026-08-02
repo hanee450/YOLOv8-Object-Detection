@@ -4,7 +4,7 @@ YOLOv8 Real-Time Object Detection - Portfolio Web Dashboard
 =============================================================================
 Author      : AI & Computer Vision Expert
 Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, Pandas, PIL
-Features    : Dark UI Glassmorphism, Image & Video Upload, Browser Camera,
+Features    : Dark UI Glassmorphism, Image & Video Upload, Continuous Auto-Detection,
               Object Tally Charts, Custom Class Filters, Export Utilities
 =============================================================================
 """
@@ -228,7 +228,7 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs([
         "🖼️ Image Detection", 
         "🎥 Video Detection", 
-        "📹 Live Camera Feed", 
+        "📹 Continuous Live Camera", 
         "📊 Model Architecture & Benchmarks"
     ])
 
@@ -244,16 +244,13 @@ def main():
             image_np = np.array(image)
 
             start_time = time.time()
-            # Perform prediction
             results = model.predict(image_np, conf=conf_threshold, verbose=False)[0]
             inference_time = (time.time() - start_time) * 1000  # ms
 
-            # Annotate image
             annotated_np, detections, class_tallies = annotate_image(
                 image_np, results, conf_threshold, selected_classes, show_labels, show_conf
             )
 
-            # Display Metrics Row
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.metric("Total Objects Detected", len(detections))
@@ -264,16 +261,13 @@ def main():
             with col4:
                 st.metric("Image Resolution", f"{image.width}x{image.height}")
 
-            # Display Images Side-by-Side
             col_img1, col_img2 = st.columns(2)
             with col_img1:
                 st.image(image, caption="Original Input Image", use_container_width=True)
             with col_img2:
                 st.image(annotated_np, caption="YOLOv8 Detected Objects", use_container_width=True)
 
-            # Detection Analytics Breakdown
             st.markdown("### 📊 Detection Analytics & Breakdown")
-            
             col_ana1, col_ana2 = st.columns([1, 1])
 
             with col_ana1:
@@ -292,7 +286,6 @@ def main():
                 else:
                     st.info("No bounding box entries to show.")
 
-            # Export Button
             st.markdown("---")
             annotated_pil = Image.fromarray(annotated_np)
             buf = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -335,7 +328,6 @@ def main():
 
                 frame_count = 0
                 all_tallies = {}
-
                 start_proc = time.time()
 
                 while cap.isOpened():
@@ -344,7 +336,6 @@ def main():
                         break
 
                     frame_count += 1
-                    # Convert BGR to RGB for YOLO prediction
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     results = model.predict(frame_rgb, conf=conf_threshold, verbose=False)[0]
 
@@ -352,20 +343,16 @@ def main():
                         frame_rgb, results, conf_threshold, selected_classes, show_labels, show_conf
                     )
 
-                    # Update overall tallies
                     for k, v in tallies.items():
                         all_tallies[k] = all_tallies.get(k, 0) + v
 
-                    # Write back to output video file (in BGR format)
                     annotated_bgr = cv2.cvtColor(annotated_rgb, cv2.COLOR_RGB2BGR)
                     out.write(annotated_bgr)
 
-                    # Update progress UI every frame
                     pct = int((frame_count / total_frames) * 100) if total_frames > 0 else 0
                     progress_bar.progress(pct)
                     status_text.text(f"Processing Frame {frame_count}/{total_frames} ({pct}%)")
 
-                    # Preview live frame in Streamlit UI (sampled every 5 frames for speed)
                     if frame_count % 5 == 0:
                         st_frame.image(annotated_rgb, caption="Live Processing Preview", use_container_width=True)
 
@@ -375,7 +362,6 @@ def main():
                 proc_duration = time.time() - start_proc
                 st.success(f"🎉 Video processing finished in {proc_duration:.2f} seconds ({frame_count / proc_duration:.1f} FPS)!")
 
-                # Video Download Option
                 with open(output_path, "rb") as vf:
                     st.download_button(
                         label="💾 Download Processed Video",
@@ -385,16 +371,17 @@ def main():
                     )
 
     # -------------------------------------------------------------------------
-    # TAB 3: Live Camera Feed Mode (Direct Browser Camera Capture)
+    # TAB 3: Continuous Live Camera Feed (Auto-Detection Mode)
     # -------------------------------------------------------------------------
     with tab3:
-        st.subheader("📹 Live Web Camera Object Detection")
-        st.write("Use your device camera (Laptop Webcam or Smartphone Camera) directly in the browser to detect objects live!")
+        st.subheader("📹 Continuous Live Camera Auto-Detection")
+        st.write("Enable the toggle below for continuous real-time camera auto-detection!")
 
-        camera_image = st.camera_input("Take a photo with your live camera")
+        auto_toggle = st.toggle("🔴 Enable Continuous Auto-Detection Loop", value=False)
+
+        camera_image = st.camera_input("Live Camera Feed", key="continuous_camera")
 
         if camera_image is not None:
-            # Convert camera buffer to OpenCV BGR then RGB
             bytes_data = camera_image.getvalue()
             cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
             cv2_img_rgb = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
@@ -407,11 +394,9 @@ def main():
                 cv2_img_rgb, results, conf_threshold, selected_classes, show_labels, show_conf
             )
 
-            # Display Result
-            st.image(annotated_rgb, caption="YOLOv8 Detected Live Camera Frame", use_container_width=True)
+            st.image(annotated_rgb, caption="YOLOv8 Real-Time Auto Detected Frame", use_container_width=True)
 
-            # Analytics
-            st.markdown("### 📊 Detection Results")
+            st.markdown("### 📊 Live Detections Breakdown")
             c1, c2 = st.columns(2)
             with c1:
                 st.metric("Total Objects Detected", len(detections))
@@ -421,12 +406,11 @@ def main():
             if detections:
                 df_det = pd.DataFrame(detections)
                 st.dataframe(df_det, use_container_width=True)
-            else:
-                st.info("No objects detected in the captured camera frame.")
 
-        st.markdown("---")
-        st.write("💻 **Desktop High-FPS Mode**: To run high framerate continuous desktop webcam with hotkeys (`'s'` screenshot, `'r'` recording), run:")
-        st.code("python webcam_detection.py --conf 0.45 --filter-target", language="bash")
+            # Auto rerun for continuous stream if toggle is ON
+            if auto_toggle:
+                time.sleep(0.2)
+                st.rerun()
 
     # -------------------------------------------------------------------------
     # TAB 4: Architecture & Benchmarks
@@ -458,12 +442,6 @@ def main():
 
         df_bench = pd.DataFrame(benchmark_data)
         st.dataframe(df_bench, use_container_width=True)
-
-        st.markdown("""
-        ### 🎯 Supported Portfolio Target Classes
-        This project highlights automatic detection for **9 high-demand classes**:
-        `person`, `car`, `truck`, `bottle`, `chair`, `laptop`, `cell phone`, `bus`, `motorcycle`.
-        """)
 
 if __name__ == "__main__":
     main()

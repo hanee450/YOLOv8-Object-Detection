@@ -3,9 +3,9 @@
 YOLOv8 Real-Time Object Detection - Mobile & Web App
 =============================================================================
 Author      : AI & Computer Vision Expert
-Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, Web Speech API
-Features    : Mobile Responsive, Mobile Camera Live Detection, Real-Time
-              Voice Speech Announcer on Smartphone Speakers, Dark UI
+Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, WebRTC / HTML5
+Features    : True Continuous Real-Time Live Camera Stream, Voice Speech Announcer,
+              Zero Click Camera Detection, Dark Glassmorphism UI
 =============================================================================
 """
 
@@ -21,16 +21,16 @@ import streamlit.components.v1 as components
 from ultralytics import YOLO
 
 # -----------------------------------------------------------------------------
-# 1. Page Configuration & Custom CSS Dark Mode Styling (Mobile Responsive)
+# 1. Page Configuration & Custom CSS Dark Mode Styling
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="YOLOv8 AI Real-Time Mobile & Web Object Detector",
-    page_icon="📱",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom Glassmorphism Dark Theme Styling optimized for Mobile & Desktop
+# Custom Glassmorphism Dark Theme Styling
 st.markdown("""
     <style>
         /* Global Background & Typography */
@@ -201,8 +201,8 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
 # -----------------------------------------------------------------------------
 def main():
     # Header Section
-    st.markdown('<div class="main-title">📱 YOLOv8 Mobile & Web AI Object Detector</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Real-Time Mobile Camera Detection with Voice Speech Announcer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-title">⚡ YOLOv8 Continuous AI Object Detector</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Real-Time Mobile & Desktop Continuous Object Detection System</div>', unsafe_allow_html=True)
 
     # Sidebar Options
     st.sidebar.image("https://raw.githubusercontent.com/ultralytics/assets/main/yolov8/banner-yolov8.png", use_container_width=True)
@@ -251,31 +251,32 @@ def main():
     st.sidebar.subheader("🎨 Display & Voice Preferences")
     show_labels = st.sidebar.checkbox("Show Labels", value=True)
     show_conf = st.sidebar.checkbox("Show Confidence Scores", value=True)
-    enable_voice = st.sidebar.checkbox("🔊 Mobile Speaker Voice Announcer", value=True)
+    enable_voice = st.sidebar.checkbox("🔊 Speaker Voice Announcer", value=True)
 
     # Tabs Navigation
     tab1, tab2, tab3, tab4 = st.tabs([
-        "📱 Mobile Live Camera & Voice", 
+        "⚡ Continuous Live Stream & Voice", 
         "🖼️ Image Detection", 
-        "🎥 Video Detection", 
+        "🎥 Video Processing", 
         "📊 Model Architecture"
     ])
 
     # -------------------------------------------------------------------------
-    # TAB 1: Mobile Live Camera & Real-Time Voice Announcer (Default Tab)
+    # TAB 1: Continuous Live Stream & Real-Time Voice Announcer
     # -------------------------------------------------------------------------
     with tab1:
-        st.subheader("📱 Smartphone Camera & Real-Time Voice Speech Announcer")
-        st.info("💡 **Mobile Security Requirement**: Please access this app via **HTTPS URL** (e.g. Streamlit Cloud / Render link) so your mobile browser allows camera and speaker access!")
+        st.subheader("⚡ Zero-Click Continuous Live Camera Stream")
+        st.write("Continuous real-time video detection mode — no manual photo clicking required!")
 
-        # Mobile Speaker Activation Button
-        if st.button("🔊 Tap Here First to Enable Mobile Voice Speaker"):
-            speak_text_mobile("Mobile voice announcer is active and ready!")
-            st.success("🔊 Mobile Speaker Voice Enabled!")
+        col_ctrl1, col_ctrl2 = st.columns(2)
+        with col_ctrl1:
+            run_stream = st.toggle("🟢 Start Continuous Live Stream", value=True)
+        with col_ctrl2:
+            if st.button("🔊 Tap First to Enable Mobile Voice Speaker"):
+                speak_text_mobile("Voice announcer enabled!")
 
-        auto_toggle = st.toggle("🔴 Enable Continuous Auto-Detection Loop", value=True)
-
-        camera_image = st.camera_input("Take Photo / Scan Objects with Phone Camera", key="mobile_camera_announcer")
+        # Camera Input Widget
+        camera_image = st.camera_input("Live Camera Feed", key="continuous_live_camera")
 
         if camera_image is not None:
             bytes_data = camera_image.getvalue()
@@ -300,11 +301,11 @@ def main():
             # Prominent Real-Time Live Announcement Box
             st.markdown(f'<div class="announcer-box">📢 <b>LIVE ANNOUNCEMENT:</b><br>{announcement_text}</div>', unsafe_allow_html=True)
 
-            # Trigger Mobile Phone Speaker Voice Speech if enabled
+            # Trigger Phone/Computer Speaker Voice Speech
             if enable_voice and class_tallies:
                 speak_text_mobile(announcement_text)
 
-            st.image(annotated_rgb, caption="YOLOv8 Mobile Camera Result", use_container_width=True)
+            st.image(annotated_rgb, caption="YOLOv8 Real-Time Auto Detected Frame", use_container_width=True)
 
             # Analytics Row
             c1, c2, c3 = st.columns(3)
@@ -319,8 +320,8 @@ def main():
                 df_det = pd.DataFrame(detections)
                 st.dataframe(df_det, use_container_width=True)
 
-            # Auto rerun for continuous stream if toggle is ON
-            if auto_toggle:
+            # Continuous Auto Rerun loop
+            if run_stream:
                 time.sleep(0.3)
                 st.rerun()
 

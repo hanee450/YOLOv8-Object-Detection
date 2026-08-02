@@ -61,8 +61,8 @@ st.markdown("""
             background: linear-gradient(90deg, #0284c7 0%, #6366f1 100%);
             color: white;
             border-radius: 14px;
-            padding: 14px 20px;
-            font-size: 1.25rem;
+            padding: 16px 20px;
+            font-size: 1.35rem;
             font-weight: 700;
             box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
             margin-bottom: 16px;
@@ -266,11 +266,16 @@ def main():
     # -------------------------------------------------------------------------
     with tab1:
         st.subheader("📱 Smartphone Camera & Real-Time Voice Speech Announcer")
-        st.write("Use your phone camera (Android Chrome or iPhone Safari) for live object detection with spoken voice announcements!")
+        st.info("💡 **Mobile Security Requirement**: Please access this app via **HTTPS URL** (e.g. Streamlit Cloud / Render link) so your mobile browser allows camera and speaker access!")
+
+        # Mobile Speaker Activation Button
+        if st.button("🔊 Tap Here First to Enable Mobile Voice Speaker"):
+            speak_text_mobile("Mobile voice announcer is active and ready!")
+            st.success("🔊 Mobile Speaker Voice Enabled!")
 
         auto_toggle = st.toggle("🔴 Enable Continuous Auto-Detection Loop", value=True)
 
-        camera_image = st.camera_input("Open Phone Camera", key="mobile_camera_announcer")
+        camera_image = st.camera_input("Take Photo / Scan Objects with Phone Camera", key="mobile_camera_announcer")
 
         if camera_image is not None:
             bytes_data = camera_image.getvalue()
@@ -316,7 +321,7 @@ def main():
 
             # Auto rerun for continuous stream if toggle is ON
             if auto_toggle:
-                time.sleep(0.2)
+                time.sleep(0.3)
                 st.rerun()
 
     # -------------------------------------------------------------------------

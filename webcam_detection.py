@@ -3,7 +3,7 @@
 YOLOv8 Real-Time Object Detection with Voice Speech Announcer (TTS)
 =============================================================================
 Author      : AI & Computer Vision Portfolio
-Tech Stack  : Python 3.11, YOLOv8 (Ultralytics), OpenCV, NumPy, Windows SAPI5
+Tech Stack  : Python 3.11, YOLOv8 (Ultralytics), OpenCV, NumPy, PyTTSx3
 Features    : Real-Time Detection, Live Voice Speech Announcer, FPS HUD,
               Class Filtering, Screenshot ('s'), Video Recording ('r')
 =============================================================================
@@ -12,6 +12,7 @@ Features    : Real-Time Detection, Live Voice Speech Announcer, FPS HUD,
 import argparse
 import os
 import time
+import queue
 import threading
 from datetime import datetime
 import cv2
@@ -37,23 +38,36 @@ CLASS_COLORS = {
 }
 DEFAULT_COLOR = (0, 255, 127)
 
-# Non-blocking Async Voice Announcer Engine (SAPI5 Windows TTS / pyttsx3 fallback)
-def speak_text_async(text: str):
-    """Speaks text in a non-blocking background thread so webcam FPS never drops."""
-    def _speak():
-        try:
-            import win32com.client
-            speaker = win32com.client.Dispatch("SAPI.SpVoice")
-            speaker.Speak(text)
-        except Exception:
+# Speech Queue and Worker Thread for 100% reliable non-blocking Windows TTS
+speech_queue = queue.Queue()
+
+def speech_worker():
+    """Background worker thread that processes Text-to-Speech audio queue."""
+    try:
+        import pyttsx3
+        engine = pyttsx3.init()
+        engine.setProperty('rate', 160)
+        while True:
+            text = speech_queue.get()
+            if text is None:
+                break
+            print(f"[Voice Announcer]: {text}")
             try:
-                import pyttsx3
-                engine = pyttsx3.init()
                 engine.say(text)
                 engine.runAndWait()
-            except Exception:
-                pass
-    threading.Thread(target=_speak, daemon=True).start()
+            except Exception as e:
+                print(f"[Voice Engine Error]: {e}")
+            speech_queue.task_done()
+    except Exception as e:
+        print(f"[TTS Initialization Warning]: {e}")
+
+# Start background speech thread ONCE at startup
+threading.Thread(target=speech_worker, daemon=True).start()
+
+def speak_text_async(text: str):
+    """Enqueues speech text without blocking the main webcam loop."""
+    if speech_queue.empty():
+        speech_queue.put(text)
 
 def parse_args():
     parser = argparse.ArgumentParser(description="YOLOv8 Real-Time Voice Object Detection")
@@ -62,7 +76,7 @@ def parse_args():
     parser.add_argument("--conf", type=float, default=0.45, help="Confidence threshold")
     parser.add_argument("--filter-target", action="store_true", help="Only detect 9 target classes")
     parser.add_argument("--speak", action="store_true", default=True, help="Enable real-time voice speech announcements")
-    parser.add_argument("--voice-interval", type=float, default=3.0, help="Seconds between voice speech announcements")
+    parser.add_argument("--voice_interval", type=float, default=3.0, help="Seconds between voice speech announcements")
     return parser.parse_args()
 
 def draw_hud(frame, fps, total_objects, is_recording, announcement):
@@ -109,18 +123,18 @@ def main():
     source = int(args.source) if args.source.isdigit() else args.source
 
     print("=" * 60)
-    print("🚀 YOLOv8 Real-Time Voice Object Detection")
-    print(f"📦 Model           : {args.model}")
-    print(f"📹 Source          : {source}")
-    print(f"🎯 Confidence      : {args.conf}")
-    print(f"🔊 Voice Speech    : {'Enabled' if args.speak else 'Disabled'}")
+    print("YOLOv8 Real-Time Voice Object Detection System")
+    print(f"Model           : {args.model}")
+    print(f"Source          : {source}")
+    print(f"Confidence      : {args.conf}")
+    print(f"Voice Speech    : {'Enabled' if args.speak else 'Disabled'}")
     print("=" * 60)
 
     model = YOLO(args.model)
     cap = cv2.VideoCapture(source)
     
     if not cap.isOpened():
-        print(f"❌ Error: Could not open camera source {source}")
+        print(f"Error: Could not open camera source {source}")
         return
 
     if isinstance(source, int):
@@ -203,7 +217,7 @@ def main():
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             shot_path = os.path.join(output_dir, f"screenshot_{timestamp}.png")
             cv2.imwrite(shot_path, frame)
-            print(f"📸 Screenshot saved to: {shot_path}")
+            print(f"Screenshot saved to: {shot_path}")
         elif key == ord('r'):
             if not is_recording:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -212,13 +226,13 @@ def main():
                 h, w, _ = frame.shape
                 out_video = cv2.VideoWriter(rec_path, fourcc, 20.0, (w, h))
                 is_recording = True
-                print(f"🔴 Started recording to: {rec_path}")
+                print(f"Started recording to: {rec_path}")
             else:
                 is_recording = False
                 if out_video:
                     out_video.release()
                     out_video = None
-                print("⏹️ Stopped recording.")
+                print("Stopped recording.")
 
     cap.release()
     if out_video is not None:

@@ -184,7 +184,7 @@ def main():
         last_announced_text = announcement
 
         # Speak announcement via laptop/PC speakers at set intervals
-        if args.speak and detected_counts and (current_time - last_spoken_time > args.voice-interval):
+        if args.speak and detected_counts and (current_time - last_spoken_time > args.voice_interval):
             speak_text_async(announcement)
             last_spoken_time = current_time
 

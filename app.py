@@ -4,8 +4,8 @@ YOLOv8 Real-Time Mobile & Web Object Detector
 =============================================================================
 Author      : AI & Computer Vision Expert
 Tech Stack  : Streamlit, YOLOv8 (Ultralytics), OpenCV, NumPy, WebRTC HTML5
-Features    : True Smartphone Back Camera Live Stream (getUserMedia),
-              Real-Time Mobile Object Speech Announcer, Glassmorphism UI
+Features    : High Accuracy Mobile Camera Detection, Fast Auto-Loop Rerun,
+              Mobile Voice Announcer, Glassmorphism Dark UI
 =============================================================================
 """
 
@@ -25,7 +25,7 @@ from ultralytics import YOLO
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="YOLOv8 AI Real-Time Mobile & Web Object Detector",
-    page_icon="📱",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -52,7 +52,7 @@ st.markdown("""
             color: white;
             border-radius: 14px;
             padding: 16px 20px;
-            font-size: 1.3rem;
+            font-size: 1.35rem;
             font-weight: 700;
             box-shadow: 0 10px 25px rgba(99, 102, 241, 0.35);
             margin-bottom: 16px;
@@ -136,7 +136,7 @@ def speak_text_mobile(text: str):
     components.html(js_code, height=0, width=0)
 
 def annotate_image(image_np, results, conf_threshold, selected_classes, show_labels=True, show_conf=True):
-    """Draws bounding boxes and labels on an image array."""
+    """Draws high-contrast bounding boxes and labels on an image array."""
     annotated = image_np.copy()
     detections = []
     class_tallies = {}
@@ -155,23 +155,24 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
         x1, y1, x2, y2 = map(int, box.xyxy[0])
         color = CLASS_COLORS.get(class_name, DEFAULT_COLOR)
 
-        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 3)
+        # Draw thick rounded rectangle for clear visibility on mobile
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 4)
 
         label_text = class_name.capitalize()
         if show_conf:
             label_text += f" {conf * 100:.1f}%"
 
         if show_labels:
-            (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-            cv2.rectangle(annotated, (x1, y1 - th - 10), (x1 + tw + 10, y1), color, -1)
-            cv2.putText(annotated, label_text, (x1 + 5, y1 - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2, cv2.LINE_AA)
+            (tw, th), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
+            cv2.rectangle(annotated, (x1, y1 - th - 12), (x1 + tw + 12, y1), color, -1)
+            cv2.putText(annotated, label_text, (x1 + 6, y1 - 6),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 2, cv2.LINE_AA)
 
         class_tallies[class_name] = class_tallies.get(class_name, 0) + 1
         detections.append({
             "Class": class_name.capitalize(),
-            "Confidence": f"{conf * 100:.2f}%",
-            "BBox (x1,y1,x2,y2)": f"({x1}, {y1}, {x2}, {y2})"
+            "Confidence": f"{conf * 100:.1f}%",
+            "BBox": f"({x1}, {y1}, {x2}, {y2})"
         })
 
     return annotated, detections, class_tallies
@@ -181,7 +182,7 @@ def annotate_image(image_np, results, conf_threshold, selected_classes, show_lab
 # -----------------------------------------------------------------------------
 def main():
     st.markdown('<div class="main-title">📱 YOLOv8 Mobile & Web AI Object Detector</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">Real-Time Mobile Camera Detection with Voice Speech Announcer</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-title">Real-Time High Precision Camera Object Detection & Voice Announcer</div>', unsafe_allow_html=True)
 
     st.sidebar.image("https://raw.githubusercontent.com/ultralytics/assets/main/yolov8/banner-yolov8.png", use_container_width=True)
     st.sidebar.header("⚙️ Model & Detection Config")
@@ -196,13 +197,14 @@ def main():
     with st.spinner(f"Loading {model_weights}..."):
         model = load_yolo_model(model_weights)
 
+    # Default to 0.35 confidence threshold for high sensitivity on mobile
     conf_threshold = st.sidebar.slider(
         "Confidence Threshold",
         min_value=0.10,
         max_value=1.00,
-        value=0.40,
+        value=0.35,
         step=0.05,
-        help="Filter out weak detections with confidence lower than threshold."
+        help="Lower confidence detects smaller or faster moving objects."
     )
 
     filter_mode = st.sidebar.radio(
@@ -227,62 +229,22 @@ def main():
     enable_voice = st.sidebar.checkbox("🔊 Speaker Voice Announcer", value=True)
 
     tab1, tab2, tab3, tab4 = st.tabs([
-        "📱 Smartphone Live Camera Stream", 
+        "⚡ Mobile Live Detection & Voice", 
         "🖼️ Image Detection", 
         "🎥 Video Processing", 
         "📊 Model Architecture"
     ])
 
     # -------------------------------------------------------------------------
-    # TAB 1: Smartphone Native WebRTC Live Stream
+    # TAB 1: High Precision Mobile Live Camera Stream & Announcer
     # -------------------------------------------------------------------------
     with tab1:
-        st.subheader("📱 Real-Time Smartphone Camera Stream")
-        st.write("Live video stream from your smartphone camera with continuous real-time object detection!")
+        st.subheader("📱 Real-Time High Precision Smartphone Camera Scanner")
+        st.write("Scan objects live with your smartphone camera for instant detection and spoken voice announcements!")
 
-        # Native WebRTC Smartphone Camera Embed
-        webrtc_html = """
-        <div style="text-align: center; background: rgba(30, 41, 59, 0.8); padding: 15px; border-radius: 16px;">
-            <video id="mobile_video" autoplay playsinline style="width: 100%; max-width: 480px; border-radius: 12px; border: 2px solid #38bdf8;"></video>
-            <div id="cam_status" style="margin-top: 10px; font-weight: bold; color: #38bdf8; font-size: 1.1rem;">
-                🎥 Requesting Smartphone Camera Access...
-            </div>
-        </div>
-        <script>
-            const video = document.getElementById('mobile_video');
-            const status = document.getElementById('cam_status');
+        auto_loop = st.checkbox("🟢 Continuous Auto-Detection Loop", value=True)
 
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: { ideal: "environment" } }, 
-                    audio: false 
-                })
-                .then(function(stream) {
-                    video.srcObject = stream;
-                    status.innerHTML = "⚡ Smartphone Live Camera Connected & Streaming!";
-                })
-                .catch(function(err) {
-                    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-                    .then(function(stream) {
-                        video.srcObject = stream;
-                        status.innerHTML = "⚡ Camera Connected!";
-                    })
-                    .catch(function(e) {
-                        status.innerHTML = "⚠️ Please allow Camera Permission in your Mobile Browser bar.";
-                    });
-                });
-            } else {
-                status.innerHTML = "⚠️ WebRTC Camera API not supported in this browser.";
-            }
-        </script>
-        """
-        components.html(webrtc_html, height=360)
-
-        st.markdown("---")
-        st.subheader("📸 Auto-Scan Detection Frame")
-
-        auto_loop = st.checkbox("🟢 Continuous Auto-Rerun Detection", value=True)
-        camera_image = st.camera_input("Capture Live Frame for AI Processing", key="mobile_native_cam")
+        camera_image = st.camera_input("Point Phone Camera at Objects", key="high_precision_mobile_cam")
 
         if camera_image is not None:
             bytes_data = camera_image.getvalue()
@@ -301,23 +263,29 @@ def main():
                 tally_items = [f"{count} {cls.capitalize()}{'s' if count > 1 else ''}" for cls, count in class_tallies.items()]
                 announcement_text = "I see " + ", ".join(tally_items)
             else:
-                announcement_text = "No target objects detected."
+                announcement_text = "Scanning for objects..."
 
             st.markdown(f'<div class="announcer-box">📢 <b>LIVE ANNOUNCEMENT:</b><br>{announcement_text}</div>', unsafe_allow_html=True)
 
             if enable_voice and class_tallies:
                 speak_text_mobile(announcement_text)
 
-            st.image(annotated_rgb, caption="YOLOv8 AI Real-Time Detection Result", use_container_width=True)
+            st.image(annotated_rgb, caption="YOLOv8 AI High Precision Detection", use_container_width=True)
 
-            c1, c2 = st.columns(2)
+            c1, c2, c3 = st.columns(3)
             with c1:
                 st.metric("Objects Detected", len(detections))
             with c2:
+                st.metric("Unique Classes", len(class_tallies))
+            with c3:
                 st.metric("Speed", f"{proc_ms:.1f} ms")
 
+            if detections:
+                df_det = pd.DataFrame(detections)
+                st.dataframe(df_det, use_container_width=True)
+
             if auto_loop:
-                time.sleep(0.3)
+                time.sleep(0.1)
                 st.rerun()
 
     # -------------------------------------------------------------------------

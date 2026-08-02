@@ -1,11 +1,11 @@
 """
 =============================================================================
-YOLOv8 Real-Time Webcam Object Detection System
+YOLOv8 Real-Time Webcam & Phone IP Camera Object Detection System
 =============================================================================
 Author      : AI & Computer Vision Portfolio
 Tech Stack  : Python 3.11, YOLOv8 (Ultralytics), OpenCV, NumPy
-Features    : Real-time detection, FPS Counter, Class Filtering,
-              Screenshot Capture ('s'), Live Recording ('r'), HUD Overlay
+Features    : Real-Time Webcam & Phone IP Camera Stream, FPS Counter,
+              Target Class Filtering, Screenshot ('s'), Recording ('r')
 =============================================================================
 """
 
@@ -38,195 +38,156 @@ CLASS_COLORS = {
 DEFAULT_COLOR = (0, 255, 127)      # Spring Green fallback
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="YOLOv8 Real-Time Webcam Object Detection")
-    parser.add_argument("--model", type=str, default="yolov8n.pt", help="Path to YOLOv8 model weights (e.g., yolov8n.pt, yolov8s.pt)")
-    parser.add_argument("--source", type=int, default=0, help="Webcam device index (default: 0)")
+    parser = argparse.ArgumentParser(description="YOLOv8 Real-Time Webcam & Phone Camera Detection")
+    parser.add_argument("--model", type=str, default="yolov8n.pt", help="Path to YOLOv8 model weights")
+    parser.add_argument("--source", type=str, default="0", help="Webcam index (e.g., 0) OR Phone IP Camera Stream URL (e.g., http://192.168.1.5:8080/video)")
     parser.add_argument("--conf", type=float, default=0.45, help="Confidence threshold (0.0 to 1.0)")
     parser.add_argument("--filter-target", action="store_true", help="Only detect the 9 specified target classes")
     return parser.parse_args()
 
 def draw_hud(frame, fps, total_objects, is_recording):
-    """Draws a sleek, dark glassmorphism HUD overlay on the frame."""
     h, w, _ = frame.shape
     overlay = frame.copy()
     
-    # Top HUD Bar
     cv2.rectangle(overlay, (0, 0), (w, 55), (20, 20, 20), -1)
-    
-    # Blend overlay with original frame (transparency effect)
     alpha = 0.65
     cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
     
-    # Title & FPS
-    cv2.putText(frame, "YOLOv8 Real-Time AI Vision", (15, 35), 
+    cv2.putText(frame, "YOLOv8 Real-Time AI Vision (Live Dashcam)", (15, 35), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
     
-    # FPS badge
     fps_color = (0, 255, 0) if fps > 20 else (0, 165, 255)
     cv2.putText(frame, f"FPS: {fps:.1f}", (w - 150, 35), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, fps_color, 2, cv2.LINE_AA)
     
-    # Total Objects counter badge
     cv2.putText(frame, f"Detected: {total_objects}", (w - 320, 35), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 215, 255), 2, cv2.LINE_AA)
 
-    # Recording indicator indicator dot if active
     if is_recording:
         cv2.circle(frame, (w - 340, 28), 7, (0, 0, 255), -1)
         cv2.putText(frame, "REC", (w - 390, 35), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2, cv2.LINE_AA)
 
 def draw_control_panel(frame):
-    """Draws hotkey guide at the bottom of the feed."""
     h, w, _ = frame.shape
     overlay = frame.copy()
     cv2.rectangle(overlay, (0, h - 35), (w, h), (15, 15, 15), -1)
     cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
     
-    controls_text = "Hotkeys:  [S] Take Screenshot  |  [R] Toggle Recording  |  [Q] Quit"
+    controls_text = "Hotkeys:  [S] Screenshot  |  [R] Toggle Recording  |  [Q] Quit"
     cv2.putText(frame, controls_text, (20, h - 12), 
                 cv2.FONT_HERSHEY_SIMPLEX, 0.48, (200, 200, 200), 1, cv2.LINE_AA)
 
 def main():
     args = parse_args()
-
-    # Ensure output directory exists
     output_dir = os.path.join(os.path.dirname(__file__), "output")
     os.makedirs(output_dir, exist_ok=True)
 
+    # Determine camera source (Numeric index for local webcam OR string URL for IP Phone Camera)
+    source = int(args.source) if args.source.isdigit() else args.source
+
     print("=" * 60)
-    print("🚀 Initializing YOLOv8 Real-Time Webcam Detection System")
+    print("🚀 Initializing YOLOv8 Live Dashcam System")
     print(f"📦 Model           : {args.model}")
-    print(f"🎥 Source Index   : {args.source}")
-    print(f"🎯 Confidence Threshold: {args.conf}")
-    print(f"🔍 Target Filter  : {'Enabled (9 Target Classes)' if args.filter_target else 'Disabled (All COCO Classes)'}")
+    print(f"📹 Stream Source   : {source}")
+    print(f"🎯 Confidence Thresh: {args.conf}")
+    print(f"🔍 Class Filter     : {'Enabled (9 Target Classes)' if args.filter_target else 'Disabled (All Classes)'}")
     print("=" * 60)
 
-    # Load YOLOv8 Model
     print("⏳ Loading YOLOv8 model weights...")
     model = YOLO(args.model)
     print("✅ Model loaded successfully!")
 
-    # Initialize Video Capture
-    cap = cv2.VideoCapture(args.source)
+    cap = cv2.VideoCapture(source)
     if not cap.isOpened():
-        print(f"❌ Error: Unable to open webcam at index {args.source}.")
+        print(f"❌ Error: Unable to open camera stream at source '{source}'.")
+        print("💡 Tip: Make sure your phone and laptop are on the same Wi-Fi network and the IP Camera URL is correct.")
         return
 
-    # Set resolution (1280x720 preferred)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    # If numeric webcam, request high resolution
+    if isinstance(source, int):
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-    # FPS Calculation variables
     prev_time = time.time()
     fps_smooth = 0.0
-
-    # Video Recorder variables
     is_recording = False
     out_video = None
 
-    print("\nPress 'q' on the OpenCV window to exit, 's' to screenshot, 'r' to record video.\n")
+    print("\nPress 'q' to exit, 's' for screenshot, 'r' to record video.\n")
 
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("⚠️ Failed to capture frame from webcam. Exiting...")
-            break
+            print("⚠️ Stream interrupted or frame unreadable. Reconnecting...")
+            time.sleep(0.5)
+            continue
 
         current_time = time.time()
         time_diff = current_time - prev_time
         prev_time = current_time
         if time_diff > 0:
             current_fps = 1.0 / time_diff
-            fps_smooth = 0.9 * fps_smooth + 0.1 * current_fps  # Smooth FPS estimate
+            fps_smooth = 0.9 * fps_smooth + 0.1 * current_fps
 
-        # Perform YOLOv8 Object Detection
         results = model.predict(frame, conf=args.conf, verbose=False)[0]
-
         total_objects = 0
-        detected_counts = {}
 
-        # Parse detected boxes
         for box in results.boxes:
             cls_id = int(box.cls[0])
             class_name = model.names[cls_id]
             conf = float(box.conf[0])
 
-            # Apply Target Filter if requested
             if args.filter_target and class_name not in TARGET_CLASSES:
                 continue
 
             total_objects += 1
-            detected_counts[class_name] = detected_counts.get(class_name, 0) + 1
-
-            # Bounding box coordinates
             x1, y1, x2, y2 = map(int, box.xyxy[0])
-
-            # Get class specific color
             color = CLASS_COLORS.get(class_name, DEFAULT_COLOR)
 
-            # Draw sleek rounded corner bounding box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-
-            # Draw Label with solid background
             label = f"{class_name.capitalize()} {conf:.2f}"
-            (text_w, text_h), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
-            
-            # Label background box
+            (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
             cv2.rectangle(frame, (x1, y1 - text_h - 10), (x1 + text_w + 10, y1), color, -1)
-            # Label text
             cv2.putText(frame, label, (x1 + 5, y1 - 5), 
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 0), 1, cv2.LINE_AA)
 
-        # Draw HUD overlays
         draw_hud(frame, fps_smooth, total_objects, is_recording)
         draw_control_panel(frame)
 
-        # Write frame to recording file if active
         if is_recording and out_video is not None:
             out_video.write(frame)
 
-        # Display output feed
-        cv2.imshow("YOLOv8 Real-Time Object Detection", frame)
+        cv2.imshow("YOLOv8 Live Phone Dashcam", frame)
 
-        # Keypress Handling
         key = cv2.waitKey(1) & 0xFF
-        
-        # Press 'q' to quit
         if key == ord('q'):
-            print("\n🛑 Exiting Real-Time Object Detection.")
             break
-            
-        # Press 's' to capture screenshot
         elif key == ord('s'):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             shot_path = os.path.join(output_dir, f"screenshot_{timestamp}.png")
             cv2.imwrite(shot_path, frame)
             print(f"📸 Screenshot saved to: {shot_path}")
-
-        # Press 'r' to toggle video recording
         elif key == ord('r'):
             if not is_recording:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                rec_path = os.path.join(output_dir, f"webcam_recording_{timestamp}.mp4")
+                rec_path = os.path.join(output_dir, f"dashcam_recording_{timestamp}.mp4")
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 h, w, _ = frame.shape
                 out_video = cv2.VideoWriter(rec_path, fourcc, 20.0, (w, h))
                 is_recording = True
-                print(f"🔴 Started recording to: {rec_path}")
+                print(f"🔴 Started recording dashcam feed to: {rec_path}")
             else:
                 is_recording = False
                 if out_video:
                     out_video.release()
                     out_video = None
-                print("⏹️ Stopped recording.")
+                print("⏹️ Stopped dashcam recording.")
 
-    # Cleanup resources
     cap.release()
     if out_video is not None:
         out_video.release()
     cv2.destroyAllWindows()
-    print("✨ Process cleaned up successfully.")
 
 if __name__ == "__main__":
     main()
